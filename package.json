@@ -1,0 +1,13 @@
+{
+  "type": "module",
+  "dependencies": {
+      "apollo-server": "^3.12.7",
+      "cuid": "^3.0.0",
+      "graphql": "^16.6.0",
+      "import-as-string": "^1.0.0"
+
+  },
+  "devDependencies": {
+      "nodemon": "^2.0.22"
+  }
+}
