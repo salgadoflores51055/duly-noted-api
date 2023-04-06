@@ -18,7 +18,7 @@ export default {
         newNote.createdAt = now.toISOString();
       }
 
-      if (!newNote.updateAt) {
+      if (!newNote.updatedAt) {
         const now = new Date();
         newNote.updatedAt = now.toISOString();
       }
@@ -28,63 +28,58 @@ export default {
       }
 
       savedNotes.push(newNote);
+
       return newNote;
     },
-    // Update note 
     updateNote(_, args) {
       const { id, note } = args;
 
-      const noteUpdate = savedNotes.find((savedNote) => savedNote.id === id);
-      if (!noteUpdate) {
-        throw new Error('Note with ID ${id} not found');
+      const noteToUpdate = savedNotes.find((savedNote) => savedNote.id === id);
+      if (!noteToUpdate) {
+        throw new Error(`Could not find note to update with ID ${id}`);
       }
 
-      const updateNote = { ...note };
+      const noteUpdates = { ...note };
 
-      if (typeof updateNote.isArchived === "boolean" || typeof updateNote.text === "string") {
-        updateNote.updatedAt = (new Date()).toISOString();
+      if (typeof noteUpdates.isArchived === "boolean" || typeof noteUpdates.text === "string") {
+        const now = new Date();
+        noteUpdates.updatedAt = now.toISOString();
       } else {
-        return noteUpdate;
+        // No changes needed
+        return noteToUpdate;
       }
 
       let updatedNote;
-      for (let i = 0; i < savedNotes.length; i++) {
-        if (savedNotes[i].id === id) {
-          Object.assign(savedNotes[i], updateNote);
-          updatedNote = savedNotes[i];
+      for (const savedNote of savedNotes) {
+        if (savedNote.id === id) {
+          Object.assign(savedNote, noteUpdates);
+          updatedNote = savedNote;
           break;
         }
       }
 
       return updatedNote;
     },
-
-    // DELETE NOTE
-
     deleteNote(_, args) {
       const { id } = args;
 
-      let deleteNote;
-      for (let i = 0; i < savedNotes.length; i++) {
-        if (savedNotes[i].id === id) {
-          deleteNote = savedNotes.splice(i, 1)[0];
-          break;
-        }
+      const noteIndex = savedNotes.findIndex((savedNote) => savedNote.id === id);
+      if (noteIndex < 0) {
+        throw new Error(`Could not find note to update with ID ${id}`);
       }
-      if (!deleteNote) throw new Error(`Note with ID ${id} not found`);
-      return deleteNote;
 
+      const [removedNote] = savedNotes.splice(noteIndex, 1);
+
+      return removedNote;
     }
-
-
   },
   Query: {
     note(_, args) {
       return savedNotes.find((note) => note.id === args.id);
     },
-
     notes(_, args) {
       const { includeArchived } = args;
+
       if (includeArchived) {
         return savedNotes;
       }
