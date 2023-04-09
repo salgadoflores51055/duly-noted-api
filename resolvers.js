@@ -1,10 +1,12 @@
-import cuid from "cuid";
-
-const savedNotes = [];
+import { UserInputError } from 'apollo-server';
+import cuid from 'cuid';
+import { getNotes, saveNotes } from './notes.js';
 
 export default {
   Mutation: {
-    createNote(_, args) {
+    async createNote(_, args) {
+      const savedNotes = await getNotes();
+
       const { note } = args;
 
       const newNote = { ...note };
@@ -23,68 +25,92 @@ export default {
         newNote.updatedAt = now.toISOString();
       }
 
-      if (typeof newNote.isArchived !== "boolean") {
+      if (typeof newNote.isArchived !== 'boolean') {
         newNote.isArchived = false;
       }
 
       savedNotes.push(newNote);
 
+      await saveNotes(savedNotes);
+
       return newNote;
     },
-    updateNote(_, args) {
-      const { id, note } = args;
 
-      const noteToUpdate = savedNotes.find((savedNote) => savedNote.id === id);
-      if (!noteToUpdate) {
-        throw new Error(`Could not find note to update with ID ${id}`);
+    //Update Note mutation
+
+    async updateNote(_, args) {
+      const { note, id } = args;
+
+      const savedNotes = await getNotes();
+
+      const noteUpdate = savedNotes.find((savedNote) => savedNote.id === id);
+
+      if (!noteUpdate) {
+        throw new UserInputError('Invalid argument value');
       }
 
-      const noteUpdates = { ...note };
+      const updateNote = { ...note };
 
-      if (typeof noteUpdates.isArchived === "boolean" || typeof noteUpdates.text === "string") {
+      if (
+        typeof updateNote.isArchived === 'boolean' ||
+        typeof updateNote.text === 'string'
+      ) {
         const now = new Date();
-        noteUpdates.updatedAt = now.toISOString();
+        updateNote.updatedAt = now.toISOString();
       } else {
-        // No changes needed
-        return noteToUpdate;
+        return noteUpdate;
       }
 
       let updatedNote;
       for (const savedNote of savedNotes) {
         if (savedNote.id === id) {
-          Object.assign(savedNote, noteUpdates);
+          Object.assign(savedNote, updateNote);
           updatedNote = savedNote;
           break;
         }
       }
 
+      await saveNotes(savedNotes);
       return updatedNote;
     },
-    deleteNote(_, args) {
+
+    //Delete Note mutation
+
+    async deleteNote(_, args) {
+      let savedNotes = await getNotes();
+
       const { id } = args;
 
-      const noteIndex = savedNotes.findIndex((savedNote) => savedNote.id === id);
+      const noteIndex = savedNotes.findIndex(
+        (savedNote) => savedNote.id === id
+      );
+
       if (noteIndex < 0) {
-        throw new Error(`Could not find note to update with ID ${id}`);
+        throw new Error('Id could not be found');
       }
 
       const [removedNote] = savedNotes.splice(noteIndex, 1);
 
+      await saveNotes(savedNotes);
+
       return removedNote;
-    }
+    },
   },
+
   Query: {
-    note(_, args) {
+    async note(_, args) {
+      const savedNotes = await getNotes();
+
       return savedNotes.find((note) => note.id === args.id);
     },
-    notes(_, args) {
-      const { includeArchived } = args;
+    async notes(_, args) {
+      const savedNotes = await getNotes();
 
+      const { includeArchived } = args;
       if (includeArchived) {
         return savedNotes;
       }
-
       return savedNotes.filter((note) => !note.isArchived);
-    }
-  }
+    },
+  },
 };
